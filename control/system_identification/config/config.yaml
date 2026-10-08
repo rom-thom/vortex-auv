@@ -1,0 +1,6 @@
+/system_identification_node:
+  ros__parameters:
+    topics:
+      odom: "/nautilus/odom"
+      imu: "/nautilus/imu"
+    mass: 53.7

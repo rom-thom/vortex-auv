@@ -1,0 +1,5 @@
+# Ignore data contents
+/control/system_identification/data/* 
+!/control/system_identification/data/.gitkeep
+
+*.egg-info/
