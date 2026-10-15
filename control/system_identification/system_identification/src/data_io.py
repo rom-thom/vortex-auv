@@ -57,10 +57,11 @@ if __name__=="__main__":
 
     data = load_data("system_identification/data/experiment.csv")
     time = data["time"]  # 1-D NumPy float array
-    values = data["values"]
+    values = data["velocity"]
 
     plt.plot(time, values)
+    plt.xlabel("Time [s]")
+    plt.ylabel("Velocity [m/s]")
     plt.show()
-
 
 
