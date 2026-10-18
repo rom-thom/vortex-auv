@@ -14,7 +14,7 @@ class SystemIdentification:
         parameters, *_ = np.linalg.lstsq(A, b, rcond=None)
         return parameters
 
-    def build_regression_simple_1D(self, data):
+    def build_regression_1D(self, data):
         """solves  d₁*v + d₂*v|v| = F - m·dv/dt  for the d values, asumes known mass and force
         data = {
             "velocity":     np.array([0.1, 0.2]),     # m/s
@@ -53,7 +53,7 @@ class SystemIdentification:
 
     # The big the bad the ugly (build regresion), dependent on model type (gray box)
     def build_regression(self, data):
-        return self.build_regression_simple_1D(data)
+        return self.build_regression_1D(data)
 
     # A * x = b <- solves for x
     def fit_parameters(self, data):
@@ -69,6 +69,7 @@ class SystemIdentification:
         A, _ = self.build_regression(data)
         return A @ self.parameters
 
+    # Calculates the two norm of each error
     def score(self, data):
         if self.parameters is None:
             raise ValueError("The model needs to be fitted before scoring.")
@@ -86,7 +87,7 @@ class SystemIdentification:
         if not 0 < training_fraction < 1:
             raise ValueError("training_fraction must be strictly between 0 and 1.")
 
-        arrays = {name: np.asarray(value) for name, value in data.items()} # Make shure thay are dictionaries
+        arrays = {name: np.asarray(value) for name, value in data.items()} # To make shure they have the correct structure
         lengths = {len(values) for values in arrays.values() if values.ndim > 0}
         if not lengths:
             raise ValueError("Data must contain at least one sample array.")

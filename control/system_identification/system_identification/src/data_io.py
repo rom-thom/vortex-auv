@@ -43,7 +43,24 @@ def load_data(file_path: str) -> dict[str, np.ndarray]:
 
 
 
+def write_to_file(data: dict[str, np.ndarray], file_path: str):
+    """Write named columns to a CSV compatible with load_data."""
+    names = [name.strip() for name in data]
+    if not names or any(not name for name in names):
+        raise ValueError("CSV must have a nonempty name for every column.")
+    if len(set(names)) != len(names):
+        raise ValueError("CSV column names must be unique.")
 
+    columns = [np.asarray(values, dtype=float) for values in data.values()]
+    if any(column.ndim != 1 for column in columns):
+        raise ValueError("CSV columns must be one-dimensional.")
+    if any(len(column) != len(columns[0]) for column in columns):
+        raise ValueError("CSV columns must have the same length.")
+
+    with open(file_path, "w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(names)
+        writer.writerows(zip(*columns))
 
 
 
