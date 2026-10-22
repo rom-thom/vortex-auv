@@ -2,5 +2,19 @@
   ros__parameters:
     topics:
       odom: "/nautilus/odom"
-      imu: "/nautilus/imu"
+      imu: "/nautilus/imu/data_raw"
+      dvl_twist: "/nautilus/dvl/twist"
+      twist: "/nautilus/twist"
+      wrench_input: "/nautilus/wrench_input"
+      thruster_forces: "/nautilus/thruster_forces"
     mass: 53.7
+
+    
+    imu_output_file: "src/vortex-auv/control/system_identification/system_identification/data/imu_test.csv"
+    # Separate raw streams; an empty filename disables that recording.
+    odom_output_file: "src/vortex-auv/control/system_identification/system_identification/data/odom_test.csv"
+    dvl_twist_output_file: "src/vortex-auv/control/system_identification/system_identification/data/dvl_twist_test.csv"
+    twist_output_file: "src/vortex-auv/control/system_identification/system_identification/data/twist_test.csv"
+    # Requested wrench and allocated thruster commands, not measured thrust.
+    wrench_input_output_file: "src/vortex-auv/control/system_identification/system_identification/data/wrench_input_test.csv"
+    thruster_forces_output_file: "src/vortex-auv/control/system_identification/system_identification/data/thruster_forces_test.csv"

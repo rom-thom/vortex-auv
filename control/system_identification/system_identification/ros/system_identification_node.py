@@ -1,57 +1,74 @@
+"""Record independent sensor and force-command streams to CSV."""
+
+from functools import partial
+from pathlib import Path
+
 import rclpy
 from rclpy.node import Node
-from nav_msgs.msg import Odometry
+from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Imu
-import numpy as np
+from nav_msgs.msg import Odometry
+from geometry_msgs.msg import TwistWithCovarianceStamped, WrenchStamped
+from vortex_msgs.msg import ThrusterForces
 
-from system_identification.src.system_identification import SystemIdentification
+from system_identification.ros.ros_file_converting import write_ros_data
 
 
 class SystemIdentificationNode(Node):
     def __init__(self):
         super().__init__("system_identification_node")
 
-        self.declare_parameter("topics.odom", "/odom")
         self.declare_parameter("topics.imu", "/imu/data")
-        self.declare_parameter("mass", 53.7)
+        self.declare_parameter("imu_output_file", "system_identification/data/imu_test.csv")
 
-        self.odom_buffer = []
-        self.imu_buffer = []
-        self.model = SystemIdentification()
-
-        odom_topic = self.get_parameter("topics.odom").value
         imu_topic = self.get_parameter("topics.imu").value
-        self.mass = self.get_parameter("mass").value
+        self.imu_output_file = self.get_parameter("imu_output_file").value
+        if self.imu_output_file:
+            # Relative paths are resolved from the directory used to launch ROS.
+            output_path = Path(self.imu_output_file).expanduser().resolve()
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            self.imu_output_file = str(output_path)
+            self.get_logger().info(f"Recording IMU from {imu_topic} to {self.imu_output_file}")
 
-        self.create_subscription(Odometry, odom_topic, self.odom_callback, 10)
-        self.create_subscription(Imu, imu_topic, self.imu_callback, 10)
+        self.imu_subscription = self.create_subscription(
+            Imu, imu_topic, self.imu_callback, qos_profile_sensor_data
+        )
 
-    def odom_callback(self, msg):
-        self.odom_buffer.append(msg.twist.twist.linear.x)
-        self.get_logger().info(f"Odometry x: {msg.twist.twist.linear.x}")
+        self.recording_subscriptions = []
+        output_paths = {self.imu_output_file} if self.imu_output_file else set()
+        for name, message_type, default_topic in (
+            ("odom", Odometry, "/odom"),
+            ("dvl_twist", TwistWithCovarianceStamped, "/dvl/twist"),
+            ("twist", TwistWithCovarianceStamped, "/twist"),
+            ("wrench_input", WrenchStamped, "/wrench_input"),
+            ("thruster_forces", ThrusterForces, "/thruster_forces"),
+        ):
+            self.declare_parameter(f"topics.{name}", default_topic)
+            # An empty filename disables recording for this topic.
+            self.declare_parameter(f"{name}_output_file", "")
+            topic = self.get_parameter(f"topics.{name}").value
+            filename = self.get_parameter(f"{name}_output_file").value
+            if not filename:
+                continue
+
+            output_path = Path(filename).expanduser().resolve()
+            if str(output_path) in output_paths:
+                raise ValueError(f"Each topic needs a separate output file: {output_path}")
+            output_paths.add(str(output_path))
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            self.get_logger().info(f"Recording {topic} to {output_path}")
+            self.recording_subscriptions.append(self.create_subscription(
+                message_type,
+                topic,
+                partial(write_ros_data, file_path=str(output_path)),
+                qos_profile_sensor_data,
+            ))
 
     def imu_callback(self, msg):
-        self.imu_buffer.append(msg.linear_acceleration.x)
-        self.get_logger().info(f"IMU accel x: {msg.linear_acceleration.x}")
+        if self.imu_output_file:
+            write_ros_data(msg, self.imu_output_file)
 
-    def build_model_input(self):
-        if len(self.odom_buffer) == 0 or len(self.imu_buffer) == 0:
-            return None
 
-        velocity = np.asarray(self.odom_buffer, dtype=float)
-        acceleration = np.asarray(self.imu_buffer, dtype=float)
-
-        if len(velocity) != len(acceleration):
-            return None
-
-        force = self.mass * acceleration
-
-        return {
-            "velocity": velocity,
-            "acceleration": acceleration,
-            "force": force,
-            "mass": self.mass,
-        }
 def main(args=None):
     rclpy.init(args=args)
     node = SystemIdentificationNode()
@@ -61,3 +78,9 @@ def main(args=None):
         pass
     finally:
         node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main()

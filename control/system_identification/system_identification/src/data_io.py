@@ -43,8 +43,12 @@ def load_data(file_path: str) -> dict[str, np.ndarray]:
 
 
 
-def write_to_file(data: dict[str, np.ndarray], file_path: str):
-    """Write named columns to a CSV compatible with load_data."""
+def write_to_file(data: dict[str, np.ndarray], file_path: str, append=False):
+    """Write named columns to CSV
+
+    append=False: replace the file with the supplied data.
+    append=True: preserve existing rows and add new rows at the bottom.
+    """
     names = [name.strip() for name in data]
     if not names or any(not name for name in names):
         raise ValueError("CSV must have a nonempty name for every column.")
@@ -57,9 +61,28 @@ def write_to_file(data: dict[str, np.ndarray], file_path: str):
     if any(len(column) != len(columns[0]) for column in columns):
         raise ValueError("CSV columns must have the same length.")
 
-    with open(file_path, "w", newline="", encoding="utf-8") as file:
+    mode = "a+" if append else "w"
+    with open(file_path, mode, newline="", encoding="utf-8") as file:
+        needs_header = True
+        needs_newline = False
+        if append:
+            file.seek(0)
+            existing_names = next(csv.reader(file), None)
+            if existing_names is not None:
+                if existing_names != names:
+                    raise ValueError("CSV columns must match the existing header and order.")
+                needs_header = False
+            file.seek(0, 2)
+            size = file.tell()
+            if size:
+                file.buffer.seek(-1, 2)
+                needs_newline = file.buffer.read(1) not in (b"\n", b"\r")
+                file.seek(0, 2)
         writer = csv.writer(file)
-        writer.writerow(names)
+        if needs_header:
+            writer.writerow(names)
+        elif needs_newline and len(columns[0]):
+            file.write("\n")
         writer.writerows(zip(*columns))
 
 
@@ -75,6 +98,8 @@ if __name__=="__main__":
     data = load_data("system_identification/data/experiment.csv")
     time = data["time"]  # 1-D NumPy float array
     values = data["velocity"]
+
+    write_to_file(data, "system_identification/data/experiment_write.csv", append=False)
 
     plt.plot(time, values)
     plt.xlabel("Time [s]")

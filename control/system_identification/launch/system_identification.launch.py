@@ -1,5 +1,7 @@
 from launch import LaunchDescription
+from launch.substitutions import PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     return LaunchDescription([
@@ -8,7 +10,9 @@ def generate_launch_description():
             executable="system_identification_node",
             name="system_identification_node",
             parameters=[
-                "/ros_ws/install/system_identification/share/system_identification/config/config.yaml"
+                PathJoinSubstitution([
+                    FindPackageShare("system_identification"), "config", "config.yaml"
+                ])
             ],
         )
     ])
