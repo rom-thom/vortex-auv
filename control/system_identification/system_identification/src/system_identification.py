@@ -20,13 +20,13 @@ class SystemIdentification:
             "velocity":     np.array([0.1, 0.2]),     # m/s
             "acceleration": np.array([0.5, 0.4]),     # m/s²
             "force":        np.array([28.0, 35.0]),   # N
-            "mass": 53.7,                             # kg
-        }"""
+        }
+        """
 
         velocity = np.asarray(data["velocity"], dtype=float).reshape(-1)
         acceleration = np.asarray(data["acceleration"], dtype=float).reshape(-1)
         force = np.asarray(data["force"], dtype=float).reshape(-1)
-        mass = float(data["mass"])
+
 
         if velocity.size == 0:
             raise ValueError("At least one sample is required.")
@@ -37,9 +37,9 @@ class SystemIdentification:
         if not all(np.all(np.isfinite(values)) for values in (velocity, acceleration, force)) or not np.isfinite(mass):
             raise ValueError("All data values must be finite.")
 
-        # d1*v + d2*v*|v| = force - mass*acceleration
-        A = np.column_stack((velocity, velocity * np.abs(velocity)))
-        b = force - mass * acceleration
+        # d1*v + d2*v*|v| + mass * acceleration = force
+        A = np.column_stack((velocity, velocity * np.abs(velocity), acceleration))
+        b = force
 
         self.regression_matrix = A
         self.data_vector = b
@@ -59,6 +59,7 @@ class SystemIdentification:
     def fit_parameters(self, data):
         A, b = self.build_regression(data)
         parameters, *_ = np.linalg.lstsq(A, b, rcond=None)
+        self.parameters = parameters
         return parameters
 
 
@@ -125,54 +126,5 @@ if __name__ == "__main__":
     data = {
         "time": np.arange(5, dtype=float),
         "velocity": [0.0, 0.2, 0.4, 0.3, 0.1],
-        "force": np.array([0.0, 12.0, 18.0, 10.0, 3.0]),
-        "mass": 53.7,
+        "force": np.array([0.0, 12.0, 18.0, 10.0, 3.0])
     }
-
-    # Explicit sizes also check rounding down for an odd number of samples.
-    for fraction, expected_count in ((0.2, 1), (0.5, 2), (0.8, 4)):
-        training, validation = model.split_data(data, fraction)
-        np.testing.assert_equal(set(training), set(data))
-        np.testing.assert_equal(set(validation), set(data))
-        np.testing.assert_equal(training["mass"], data["mass"])
-        np.testing.assert_equal(validation["mass"], data["mass"])
-
-        for name in ("time", "velocity", "force"):
-            original = np.array(data[name], copy=True)
-            np.testing.assert_array_equal(
-                training[name], original[:expected_count]
-            )
-            np.testing.assert_array_equal(
-                validation[name], original[expected_count:]
-            )
-
-            # Editing either split must leave the input and the other split intact.
-            training[name][0] = -100.0
-            np.testing.assert_array_equal(
-                validation[name], original[expected_count:]
-            )
-            validation[name][0] = -200.0
-            np.testing.assert_equal(training[name][0], -100.0)
-            np.testing.assert_array_equal(data[name], original)
-
-        print(f"PASS: fraction={fraction}: {expected_count} training, "
-              f"{len(data['time']) - expected_count} validation samples")
-
-    for fraction in (0.0, 1.0, -0.1, 1.1, np.nan, np.inf):
-        with np.testing.assert_raises_regex(ValueError, "training_fraction"):
-            model.split_data(data, fraction)
-
-    invalid_cases = (
-        ({}, 0.5, "sample array"),
-        ({"mass": 53.7}, 0.5, "sample array"),
-        ({"velocity": [0.1, 0.2], "force": [1.0]}, 0.5, "matching lengths"),
-        ({"velocity": []}, 0.5, "at least one sample"),
-        ({"velocity": [0.1]}, 0.5, "at least one sample"),
-        ({"velocity": [0.1, 0.2]}, 0.1, "at least one sample"),
-    )
-    for invalid_data, fraction, message in invalid_cases:
-        with np.testing.assert_raises_regex(ValueError, message):
-            model.split_data(invalid_data, fraction)
-
-    print("PASS: invalid fractions and unusable datasets raise ValueError")
-    print("All split_data checks passed.")

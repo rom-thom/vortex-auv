@@ -91,6 +91,64 @@ def write_to_file(data: dict[str, np.ndarray], file_path: str, append=False):
 
 
 
+
+
+
+
+def merge_data(signals: dict[str, tuple[np.ndarray, np.ndarray]], target_time: np.ndarray | None = None) -> dict[str, np.ndarray]:
+    """Merge data to same time and interpolates datapoints for those that has lower frequency
+    
+    signals: {data_name: (its_times, data_points), ...}
+    target_time: the time we want to end with. if this is None we set it to the highest frequency 
+    """
+    if not signals:
+        raise ValueError("At least one signal is required.")
+
+    prepared = {}
+    for name, (times, values) in signals.items():
+        if not isinstance(name, str) or not name.strip() or name != name.strip() or name == "time":
+            raise ValueError("Signal names must be nonempty, trimmed strings other than 'time'.")
+        times = np.asarray(times, dtype=float)
+        values = np.asarray(values, dtype=float)
+        if times.ndim != 1 or values.ndim != 1:
+            raise ValueError(f"Signal {name!r}: timestamps and values must be one-dimensional.")
+        if times.size != values.size or times.size < 2:
+            raise ValueError(f"Signal {name!r}: need matching lengths and at least two samples.")
+        if not np.all(np.isfinite(times)) or not np.all(np.isfinite(values)):
+            raise ValueError(f"Signal {name!r}: timestamps and values must be finite.")
+        if np.any(np.diff(times) <= 0):
+            raise ValueError(f"Signal {name!r}: timestamps must be strictly increasing.")
+        prepared[name] = (times, values)
+
+    start = max(times[0] for times, _ in prepared.values())
+    end = min(times[-1] for times, _ in prepared.values())
+    if start > end:
+        raise ValueError("Signals have no overlapping time interval.")
+
+    if target_time is None:
+        target_time = min(
+            (times for times, _ in prepared.values()),
+            key=lambda times: np.median(np.diff(times)),
+        )
+    else:
+        target_time = np.asarray(target_time, dtype=float)
+        if target_time.ndim != 1 or not np.all(np.isfinite(target_time)):
+            raise ValueError("target_time must be a finite one-dimensional array.")
+        if np.any(np.diff(target_time) <= 0):
+            raise ValueError("target_time must be strictly increasing.")
+
+    time = target_time[(target_time >= start) & (target_time <= end)]
+    if time.size == 0:
+        raise ValueError("No target timestamps fall within the shared time interval.")
+
+    merged = {"time": time}
+    for name, (times, values) in prepared.items():
+        merged[name] = np.interp(time, times, values)
+    return merged
+
+
+
+
 # don't mind me, just testin here
 if __name__=="__main__":    
     import matplotlib.pyplot as plt
