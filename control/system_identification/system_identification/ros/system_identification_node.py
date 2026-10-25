@@ -61,8 +61,7 @@ class SystemIdentificationNode(Node):
                 message_type,
                 topic,
                 partial(write_ros_data, file_path=str(output_path)),
-                qos_profile_sensor_data,
-            ))
+                qos_profile_sensor_data,))
 
     def imu_callback(self, msg):
         if self.imu_output_file:
