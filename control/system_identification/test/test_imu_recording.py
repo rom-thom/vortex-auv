@@ -10,7 +10,7 @@ Imu = pytest.importorskip("sensor_msgs.msg").Imu
 pytest.importorskip("vortex_msgs.msg")
 
 from system_identification.ros.system_identification_node import SystemIdentificationNode
-from system_identification.src.data_io import load_data
+from system_identification.src.data_handeling import load_data
 
 
 def test_imu_callback_appends_real_messages(tmp_path):

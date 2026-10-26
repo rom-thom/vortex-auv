@@ -5,7 +5,7 @@ from numbers import Real
 
 import numpy as np
 
-from system_identification.src.data_io import write_to_file
+from system_identification.src.data_handeling import write_to_file
 
 
 def ros_message_to_data(message, timestamp=None) -> dict[str, np.ndarray]:

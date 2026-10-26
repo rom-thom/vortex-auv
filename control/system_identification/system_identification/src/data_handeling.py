@@ -100,6 +100,8 @@ def merge_data(signals: dict[str, tuple[np.ndarray, np.ndarray]], target_time: n
     
     signals: {data_name: (its_times, data_points), ...}
     target_time: the time we want to end with. if this is None we set it to the highest frequency 
+
+    Assumes the same global time frame, and excludes time intervals not included in all the signals
     """
     if not signals:
         raise ValueError("At least one signal is required.")
@@ -149,19 +151,45 @@ def merge_data(signals: dict[str, tuple[np.ndarray, np.ndarray]], target_time: n
 
 
 
+
+
+
+def merge_file_data(file_paths, exclude_comon_headers=False):
+    """Merge CSV files, optionally dropping non-time columns shared by any files."""
+    signals = {}
+    excluded_headers = set()
+    for file_path in file_paths:
+        data = load_data(file_path)
+        if "time" not in data:
+            raise ValueError(f"CSV {file_path!r} must contain a 'time' column.")
+        times = data.pop("time")
+        for name, values in data.items():
+            if name in excluded_headers:
+                continue
+            if name in signals:
+                if exclude_comon_headers:
+                    del signals[name]
+                    excluded_headers.add(name)
+                    continue
+                raise ValueError(f"Duplicate signal name across CSV files: {name!r}.")
+            signals[name] = (times, values)
+    return merge_data(signals)
+
+
+
+
+
 # don't mind me, just testin here
 if __name__=="__main__":    
-    import matplotlib.pyplot as plt
 
-    data = load_data("system_identification/data/experiment.csv")
-    time = data["time"]  # 1-D NumPy float array
-    values = data["velocity"]
+    signals = merge_file_data(
+        ["system_identification/data/imu_test.csv", "system_identification/data/odom_test.csv", "system_identification/data/wrench_input_test.csv"],
+        exclude_comon_headers=True,
+    )
 
-    write_to_file(data, "system_identification/data/experiment_write.csv", append=False)
+    print(signals.keys())
 
-    plt.plot(time, values)
-    plt.xlabel("Time [s]")
-    plt.ylabel("Velocity [m/s]")
-    plt.show()
+
+
 
 

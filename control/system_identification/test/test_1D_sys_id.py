@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from system_identification.src.data_io import load_data
+from system_identification.src.data_handeling import load_data
 from system_identification.src.system_identification import SystemIdentification
 
 
