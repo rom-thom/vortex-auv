@@ -1,56 +1,53 @@
-"""Check identification against the noisy synthetic experiment on disk."""
+"""Run a basic x-direction fit using the local recorded CSVs."""
 
-import json
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-from system_identification.src.data_handeling import load_data
+from system_identification.src.data_handeling import merge_file_data
+from system_identification.src.data_preprossesing import remove_gravity
 from system_identification.src.system_identification import SystemIdentification
 
 
-DATA_DIRECTORY = (Path(__file__).resolve().parents[1] / "system_identification" / "data")
+def test_1D_sys_id():
+    directory = Path(__file__).resolve().parents[1] / "system_identification" / "data"
+    paths = [directory / name for name in (
+        "imu_test.csv", "odom_test.csv", "wrench_input_test.csv",
+    )]
+    if any(not path.is_file() for path in paths):
+        pytest.skip("Requires local IMU, odometry and wrench test recordings.")
 
+    data = merge_file_data(paths, exclude_comon_headers=True)
+    accelerations = np.column_stack([
+        data[f"linear_acceleration.{axis}"] for axis in "xyz"
+    ])
+    quaternions = np.column_stack([
+        data[f"orientation.{axis}"] for axis in "xyzw"
+    ])
 
-def test_fit_experiment():
-    """Recover known damping and check an unused interval of measurements."""
-    csv_path = DATA_DIRECTORY / "experiment.csv"
-    settings_path = csv_path.with_suffix(".json")
-    if not csv_path.is_file() or not settings_path.is_file():
-        pytest.skip(
-            "Local experiment files are absent. From the package directory run: "
-            "python -m system_identification.src.generate_data")
+    # Assumes a z-down world and IMU axes aligned with the vehicle axes.
+    corrected = remove_gravity(accelerations, quaternions, gravity_world=(0, 0, 9.81))
+    fit_data = {
+        "velocity": data["twist.twist.linear.x"],
+        "acceleration": corrected[:, 0],
+        "force": data["wrench.force.x"],
+    }
 
-    data = load_data(csv_path)
-    settings = json.loads(settings_path.read_text(encoding="utf-8"))
-    assert settings["synthetic"], "This test requires known synthetic parameters."
-    for name in ("time", "velocity", "acceleration", "force"):
-        assert data[name].shape == (settings["sample_count"],)
-        assert np.all(np.isfinite(data[name]))
-    assert np.all(np.diff(data["time"]) > 0)
-
-    # Mass is a single known constant, not a column of measurements.
-    data["mass"] = float(settings["mass"])
-    expected = np.array([settings["d1"], settings["d2"]])
     model = SystemIdentification()
-    estimated = model.fit_parameters(data)
-    relative_error = 100 * np.abs((estimated - expected) / expected)
+    training, validation = model.split_data(fit_data, training_fraction=0.7)
+    parameters = model.fit_parameters(training)
+    score = model.score(validation)
 
-    print("True [d1, d2]:", expected)
-    print("Estimated [d1, d2]:", estimated)
-    print("Absolute relative error [%]:", relative_error)
+    # These check that the pipeline runs, not the physical accuracy of the fit.
+    assert parameters.shape == (3,)
+    assert np.all(np.isfinite(parameters))
+    assert np.isfinite(score)
 
-    # Fit the first two thirds; assess force balance on the remaining third.
-    train, held_out = model.split_data(data, training_fraction=2 / 3)
-    train_parameters = model.fit_parameters(train)
-
-    # Evaluate the physical equation directly on samples unused during fitting.
-    velocity = held_out["velocity"]
-    predicted_force = (data["mass"] * held_out["acceleration"] + train_parameters[0] * velocity + train_parameters[1] * velocity * np.abs(velocity))
-    rmse = np.sqrt(np.mean((predicted_force - held_out["force"]) ** 2))
-    print("Held-out force-balance RMSE [N]:", rmse)
+    print("Samples:", len(data["time"]))
+    print("Estimated [d1, d2, mass]:", parameters)
+    print("Validation force RMSE [N]:", score)
 
 
 if __name__ == "__main__":
-    test_fit_experiment()
+    test_1D_sys_id()

@@ -1,0 +1,16 @@
+/system_identification_node:
+  ros__parameters:
+    topics:
+      odom: "/test_drone/odom"
+      imu: "/test_drone/imu/data_raw"
+      dvl_twist: "/test_drone/dvl/twist"
+      twist: "/test_drone/twist"
+      wrench_input: "/test_drone/wrench_input"
+      thruster_forces: "/test_drone/thruster_forces"
+    # Paths relative to ~/ros2_ws when starting the recorder.
+    imu_output_file: "src/vortex-auv/control/system_identification/system_identification/data/test_drone/imu_test.csv"
+    odom_output_file: "src/vortex-auv/control/system_identification/system_identification/data/test_drone/odom_test.csv"
+    twist_output_file: "src/vortex-auv/control/system_identification/system_identification/data/test_drone/twist_test.csv"
+    wrench_input_output_file: "src/vortex-auv/control/system_identification/system_identification/data/test_drone/wrench_input_test.csv"
+    thruster_forces_output_file: "src/vortex-auv/control/system_identification/system_identification/data/test_drone/thruster_forces_test.csv"
+    dvl_twist_output_file: ""

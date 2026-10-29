@@ -1,10 +1,11 @@
 import numpy as np
-
+from .regresion_builds import build_regression_1D, build_regression_fossen
 
 
 
 class SystemIdentification:
-    def __init__(self):
+    def __init__(self, regression_builder=build_regression_1D):
+        self.regression_builder = regression_builder
         self.parameters = None
         self.regression_matrix = None
         self.data_vector = None
@@ -14,46 +15,14 @@ class SystemIdentification:
         parameters, *_ = np.linalg.lstsq(A, b, rcond=None)
         return parameters
 
-    def build_regression_1D(self, data):
-        """solves  d₁*v + d₂*v|v| = F - m·dv/dt  for the d values, asumes known mass and force
-        data = {
-            "velocity":     np.array([0.1, 0.2]),     # m/s
-            "acceleration": np.array([0.5, 0.4]),     # m/s²
-            "force":        np.array([28.0, 35.0]),   # N
-        }
-        """
-
-        velocity = np.asarray(data["velocity"], dtype=float).reshape(-1)
-        acceleration = np.asarray(data["acceleration"], dtype=float).reshape(-1)
-        force = np.asarray(data["force"], dtype=float).reshape(-1)
-
-
-        if velocity.size == 0:
-            raise ValueError("At least one sample is required.")
-        if not (velocity.shape == acceleration.shape == force.shape):
-            raise ValueError(
-                "velocity, acceleration, and force must have matching lengths."
-            )
-        if not all(np.all(np.isfinite(values)) for values in (velocity, acceleration, force)) or not np.isfinite(mass):
-            raise ValueError("All data values must be finite.")
-
-        # d1*v + d2*v*|v| + mass * acceleration = force
-        A = np.column_stack((velocity, velocity * np.abs(velocity), acceleration))
-        b = force
-
-        self.regression_matrix = A
-        self.data_vector = b
-        return A, b
-
-
         
-
-    # Generelt for alle system:
-
 
     # The big the bad the ugly (build regresion), dependent on model type (gray box)
     def build_regression(self, data):
-        return self.build_regression_1D(data)
+        A, b = self.regression_builder(data)
+        self.regression_matrix = A
+        self.data_vector = b
+        return A, b
 
     # A * x = b <- solves for x
     def fit_parameters(self, data):

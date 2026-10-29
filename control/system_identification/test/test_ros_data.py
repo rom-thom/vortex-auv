@@ -10,7 +10,7 @@ from system_identification.ros.ros_file_converting import (
     ros_message_to_data,
     write_ros_data,
 )
-from system_identification.src.data_handeling import load_data, write_to_file
+from system_identification.src.data_handeling import load_data, reset_ros_csv_files, write_to_file
 
 
 class Message(SimpleNamespace):
@@ -22,6 +22,48 @@ class Message(SimpleNamespace):
 
 def header(sec=0):
     return Message(stamp=Message(sec=sec, nanosec=10_000_000), frame_id="base_link")
+
+
+def test_reset_then_record_starts_fresh(tmp_path):
+    path = tmp_path / "imu.csv"
+    write_ros_data(Message(header=header(1), value=2.0), path)
+    assert reset_ros_csv_files(str(path)) == [path]
+    assert path.read_bytes() == b""
+
+    write_ros_data(Message(header=header(2), value=3.0), path)
+    write_ros_data(Message(header=header(3), value=4.0), path)
+    np.testing.assert_allclose(load_data(path)["time"], [2.01, 3.01])
+    np.testing.assert_array_equal(load_data(path)["value"], [3, 4])
+    assert len(path.read_text().splitlines()) == 3
+
+
+def test_reset_defaults_only_clear_recordings(tmp_path, monkeypatch):
+    from system_identification.src import data_handeling
+
+    monkeypatch.setattr(data_handeling, "__file__", str(tmp_path / "src" / "data_handeling.py"))
+    directory = tmp_path / "data"
+    directory.mkdir()
+    names = ("imu", "odom", "dvl_twist", "twist", "wrench_input", "thruster_forces")
+    paths = [directory / f"{name}_test.csv" for name in names]
+    for path in paths:
+        path.write_text("time,value\n1,2\n")
+    unrelated = directory / "experiment.csv"
+    unrelated.write_text("time,value\n1,2\n")
+
+    assert reset_ros_csv_files() == paths
+    assert all(path.read_bytes() == b"" for path in paths)
+    assert unrelated.read_text() == "time,value\n1,2\n"
+
+
+def test_reset_skips_missing_and_rejects_non_csv_before_clearing(tmp_path):
+    missing = tmp_path / "missing.csv"
+    assert reset_ros_csv_files([missing]) == []
+    assert not missing.exists()
+    recording = tmp_path / "imu.csv"
+    recording.write_text("time,value\n1,2\n")
+    with pytest.raises(ValueError, match="CSV"):
+        reset_ros_csv_files([recording, tmp_path / "config.yaml"])
+    assert recording.read_text() == "time,value\n1,2\n"
 
 
 def test_nested_odometry_appends_without_repeated_header(tmp_path):

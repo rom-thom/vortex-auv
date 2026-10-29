@@ -1,4 +1,5 @@
 import csv
+from pathlib import Path
 
 import numpy as np
 
@@ -95,6 +96,36 @@ def write_to_file(data: dict[str, np.ndarray], file_path: str, append=False):
 
 
 
+def reset_ros_csv_files(file_paths=None) -> list[Path]:
+    """Empty the six configured recording CSVs, or supplied CSV path(s).
+
+    Stop the recorder first. Removes headers too; recording recreates them.
+    Missing files are skipped. Returns the paths that were emptied.
+    """
+    if file_paths is None:
+        directory = Path(__file__).resolve().parents[1] / "data"
+        file_paths = [directory / f"{name}_test.csv" for name in (
+            "imu", "odom", "dvl_twist", "twist", "wrench_input", "thruster_forces",
+        )]
+    elif isinstance(file_paths, (str, Path)):
+        file_paths = [file_paths]
+
+    paths = [Path(path).expanduser() for path in file_paths]
+    for path in paths:
+        if path.suffix.lower() != ".csv":
+            raise ValueError(f"Expected a CSV file: {path}")
+
+    cleared = []
+    for path in paths:
+        try:
+            with path.open("r+", encoding="utf-8") as file:
+                file.truncate(0)
+        except FileNotFoundError:
+            continue
+        cleared.append(path)
+    return cleared
+
+
 def merge_data(signals: dict[str, tuple[np.ndarray, np.ndarray]], target_time: np.ndarray | None = None) -> dict[str, np.ndarray]:
     """Merge data to same time and interpolates datapoints for those that has lower frequency
     
@@ -182,13 +213,16 @@ def merge_file_data(file_paths, exclude_comon_headers=False):
 # don't mind me, just testin here
 if __name__=="__main__":    
 
-    signals = merge_file_data(
-        ["system_identification/data/imu_test.csv", "system_identification/data/odom_test.csv", "system_identification/data/wrench_input_test.csv"],
-        exclude_comon_headers=True,
-    )
+    # signals = merge_file_data(
+    #     ["system_identification/data/imu_test.csv", "system_identification/data/odom_test.csv", "system_identification/data/wrench_input_test.csv"],
+    #     exclude_comon_headers=True,
+    # )
 
-    print(signals.keys())
+    # print(signals.keys())
 
+
+    print(reset_ros_csv_files())
+    
 
 
 
