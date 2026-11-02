@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation
 
-from system_identification.src.fossen_model import fossen_acceleration, fossen_dynamics
+from system_identification.src.the_legend_fossen.fossen_model import fossen_acceleration, fossen_dynamics
 from system_identification.src.regresion_builds import build_regression_fossen
 from system_identification.src.evaluate import trace_dynamics
 
@@ -63,7 +63,7 @@ def test_invalid_mass_and_quaternion():
 
 
 def test_fossen_state_with_list_fields_and_integrator():
-    from system_identification.src.fossen_model import FossenState
+    from system_identification.src.the_legend_fossen.fossen_model import FossenState
 
     start = FossenState([0, 0, 100], [0, 0, 0, 1], [0] * 6)
     theta = parameters(np.eye(6))

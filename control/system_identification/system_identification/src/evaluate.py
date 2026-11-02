@@ -9,9 +9,9 @@ from pathlib import Path
 import numpy as np
 
 if __package__:
-    from .fossen_model import FossenState
+    from .the_legend_fossen.data_classes import FossenState
 else:
-    from fossen_model import FossenState
+    from the_legend_fossen.data_classes import FossenState
 
     
 
@@ -265,11 +265,10 @@ def plot_fossen_model_dynamics(data, f, reset_time, theta=None, input_forces=Non
     """Plot measured and simulated states, resetting from measurements periodically.
 
     data: time (N,), state (N FossenState objects), force (N, 6).
-    reset_time is seconds between resets (None disables resets). A reset uses
-    the first recorded sample at/after that duration from the previous reset.
-    Recorded forces are held constant until the next sample. input_forces can
+    reset_time is seconds between resets (None disables resets).
+    Recorded forces are held constant until the next sample. input_forces: can
     override them with a constant six-vector or a function of absolute time.
-    states_to_plot selects indices 0..12; None plots all states.
+    states_to_plot: selects indices 0..12; None plots all states.
     Returns (predicted, figure, axes), with predicted shaped (N, 13). Reset
     rows contain the measured state; lines also show the pre-reset prediction.
     """
@@ -347,10 +346,10 @@ if __name__ == "__main__":
     from functools import partial
     if __package__:
         from .data_handeling import load_data
-        from .fossen_model import fossen_dynamics
+        from .the_legend_fossen.fossen_model import fossen_dynamics
     else:
         from data_handeling import load_data
-        from fossen_model import fossen_dynamics
+        from the_legend_fossen.fossen_model import fossen_dynamics
 
     directory = Path(__file__).resolve().parents[1] / "data" / "sysid"
     odom = load_data(directory / "odom_test.csv")

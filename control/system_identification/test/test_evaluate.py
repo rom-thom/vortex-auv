@@ -106,7 +106,7 @@ def test_trace_dynamics_invalid_inputs(kwargs):
 def test_plot_fossen_resets_and_sampled_commands(monkeypatch):
     import matplotlib.pyplot as plt
     from system_identification.src.evaluate import plot_fossen_model_dynamics
-    from system_identification.src.fossen_model import FossenState
+    from system_identification.src.the_legend_fossen.fossen_model import FossenState
 
     monkeypatch.setattr(plt, "show", lambda: None)
     time = np.arange(5, dtype=float) + 100
@@ -137,7 +137,7 @@ def test_plot_fossen_resets_and_sampled_commands(monkeypatch):
 def test_plot_fossen_no_reset_and_force_override(monkeypatch):
     import matplotlib.pyplot as plt
     from system_identification.src.evaluate import plot_fossen_model_dynamics
-    from system_identification.src.fossen_model import FossenState
+    from system_identification.src.the_legend_fossen.fossen_model import FossenState
 
     monkeypatch.setattr(plt, "show", lambda: None)
     time = np.array([2., 2.5, 3.])
