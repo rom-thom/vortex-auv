@@ -1,0 +1,101 @@
+# This file defines simulation parameters for a 60%-scale Nautilus clone.
+# When looking at the AUV from above, the thruster placement is:
+#
+#        front
+#       |======|
+#  |=7↗=|      |=0↖=|
+#  |    |      |    |
+#  | 6• |      | 1• |
+#  |    |      |    |
+#  |    |      |    |
+#  | 5• |      | 2• |
+#  |    |      |    |
+#  |=4↘=|==||==|=3↙=|
+#
+
+/**:
+  ros__parameters:
+    physical:
+      center_of_mass: [0.0, 0.0, 0.006] # Matches the simulator CG.
+      mass_matrix: [11.5992, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 11.5992, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 11.5992, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8600256, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.7970336, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0404224]
+      # 6x6 mass_inertia_matrix
+    propulsion:
+      dofs:
+        num: 6
+      dimensions:
+        num: 3
+      thrusters:
+        num: 8
+        thruster_force_direction: [0.7071067811847431, 0.0, 0.0, -0.7071067810505391, -0.7071067810505391, 0.0, 0.0, 0.7071067811847431, -0.7071067811883518, 0.0, 0.0, -0.707106781322556, 0.707106781322556, 0.0, 0.0, 0.7071067811883518, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0]
+        thruster_position: [0.24834, 0.084, -0.09834, -0.24834, -0.24834, -0.09834, 0.084, 0.24834, 0.1878, 0.1878, 0.1878, 0.1878, -0.1878, -0.1878, -0.1878, -0.1878, 0.01302, 0.01302, 0.01302, 0.01302, 0.01302, 0.01302, 0.01302, 0.01302]
+
+        constraints:
+          max_force: 30.0
+          min_force: -30.0
+          input_matrix_weights: [1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0]
+          slack_matrix_weights: [2000.0,2000.0,2000.0,2000.0,2000.0,2000.0]
+
+        rate_of_change:
+          max: 1 # Maximum rate of change in newton per second for a thruster
+
+        thrust_update_rate: 100.0 # [Hz]
+        watchdog_timeout: 1.0 # [s]
+
+    topics:
+      wrench_input: "wrench_input"
+      thruster_forces: "thruster_forces"
+      pwm_output: "pwm"
+      current: "power_sense_module/current"
+      voltage: "power_sense_module/voltage"
+      pressure: "pressure"
+      temperature: "temperature"
+      joy: "joy"
+      pose: "pose"
+      twist: "twist"
+      odom: "odom"
+      operation_mode: "operation_mode"
+      killswitch: "killswitch"
+      reference_pose: "reference_pose"
+      landmarks: "landmarks"
+      waypoint: "waypoint"
+      guidance:
+        los: "guidance/los"
+        dp_rpy: "guidance/dp_rpy"
+        dp_quat: "guidance/dp_quat"
+      dvl_twist: "dvl/twist"
+      dvl_altitude: "dvl/altitude"
+      imu: "imu/data_raw"
+      sonar_info: ""
+      pressure_sensor: "pressure_sensor"
+      gripper_servos: "gripper_servos"
+
+
+    action_servers:
+      reference_filter: "reference_filter"
+      los: "los_guidance"
+      landmark_polling: "landmark_polling"
+      landmark_convergence: "landmark_convergence"
+      waypoint_manager: "waypoint_manager"
+
+    services:
+      set_operation_mode: "set_operation_mode"
+      set_killswitch: "set_killswitch"
+      toggle_killswitch: "toggle_killswitch"
+      get_operation_mode: "get_operation_mode"
+      waypoint_addition: "waypoint_addition"
+      start_mission: "start_mission"
+
+    # Manual force/torque commands: doubled together with thruster limits.
+    joystick_surge_gain: 20.0
+    joystick_sway_gain: 20.0
+    joystick_heave_gain: 20.0
+    joystick_roll_gain: 2.0
+    joystick_pitch_gain: 2.0
+    joystick_yaw_gain: 4.0
+
+# The joystick requires a valid gripper topic even without a gripper.
+# Disable forwarding only in the simulator bridge, leaving that topic valid.
+/sysid/stonefish_sim_interface:
+  ros__parameters:
+    topics:
+      gripper_servos: ""

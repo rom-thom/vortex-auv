@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<robot name="sysid">
+  <link name="base_link" />
+  <link name="imu_link" />
+  <joint name="base_to_imu" type="fixed">
+    <parent link="base_link" />
+    <child link="imu_link" />
+    <origin xyz="-0.06 -0.0006 0.051" rpy="0.0 0.0 0.0" />
+  </joint>
+</robot>

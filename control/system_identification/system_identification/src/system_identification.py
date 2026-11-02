@@ -1,6 +1,6 @@
 import numpy as np
 from .regresion_builds import build_regression_1D, build_regression_fossen
-
+from scipy.optimize import lsq_linear
 
 
 class SystemIdentification:
@@ -25,9 +25,15 @@ class SystemIdentification:
         return A, b
 
     # A * x = b <- solves for x
-    def fit_parameters(self, data):
+    def fit_parameters(self, data, bounds=None):
         A, b = self.build_regression(data)
-        parameters, *_ = np.linalg.lstsq(A, b, rcond=None)
+        if bounds is None:
+            parameters, *_ = np.linalg.lstsq(A, b, rcond=None)
+        else:
+            result = lsq_linear(A, b, bounds=bounds)
+            if not result.success:
+                raise RuntimeError(result.message)
+            parameters = result.x
         self.parameters = parameters
         return parameters
 
@@ -77,8 +83,6 @@ class SystemIdentification:
                 training[name] = values[:split_index].copy()
                 validation[name] = values[split_index:].copy()
         return training, validation
-
-
 
 
 

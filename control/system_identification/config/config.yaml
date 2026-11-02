@@ -1,20 +1,17 @@
+# Default recorder configuration for the sysid vehicle.
 /system_identification_node:
   ros__parameters:
     topics:
-      odom: "/nautilus/odom"
-      imu: "/nautilus/imu/data_raw"
-      dvl_twist: "/nautilus/dvl/twist"
-      twist: "/nautilus/twist"
-      wrench_input: "/nautilus/wrench_input"
-      thruster_forces: "/nautilus/thruster_forces"
-    mass: 53.7
-
-    
-    imu_output_file: "src/vortex-auv/control/system_identification/system_identification/data/imu_test.csv"
-    # Separate raw streams; an empty filename disables that recording.
-    odom_output_file: "src/vortex-auv/control/system_identification/system_identification/data/odom_test.csv"
-    dvl_twist_output_file: "src/vortex-auv/control/system_identification/system_identification/data/dvl_twist_test.csv"
-    twist_output_file: "src/vortex-auv/control/system_identification/system_identification/data/twist_test.csv"
-    # Requested wrench and allocated thruster commands, not measured thrust.
-    wrench_input_output_file: "src/vortex-auv/control/system_identification/system_identification/data/wrench_input_test.csv"
-    thruster_forces_output_file: "src/vortex-auv/control/system_identification/system_identification/data/thruster_forces_test.csv"
+      odom: "/sysid/odom"
+      imu: "/sysid/imu/data_raw"
+      dvl_twist: "/sysid/dvl/twist"
+      twist: "/sysid/twist"
+      wrench_input: "/sysid/wrench_input"
+      thruster_forces: "/sysid/thruster_forces"
+    # Paths relative to ~/ros2_ws when starting the recorder.
+    imu_output_file: "src/vortex-auv/control/system_identification/system_identification/data/sysid/imu_test.csv"
+    odom_output_file: "src/vortex-auv/control/system_identification/system_identification/data/sysid/odom_test.csv"
+    twist_output_file: "src/vortex-auv/control/system_identification/system_identification/data/sysid/twist_test.csv"
+    wrench_input_output_file: "src/vortex-auv/control/system_identification/system_identification/data/sysid/wrench_input_test.csv"
+    thruster_forces_output_file: "src/vortex-auv/control/system_identification/system_identification/data/sysid/thruster_forces_test.csv"
+    dvl_twist_output_file: ""

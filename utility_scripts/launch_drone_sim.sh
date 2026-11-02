@@ -2,7 +2,7 @@
 # Launch drone simulation stack in a tmux session
 # Usage: ./launch_drone_sim.sh [--scenario <name>]
 #   --scenario  Stonefish scenario to load (default: default)
-#               GPU scenarios:    default, docking, pipeline, structure,
+#               GPU scenarios:    default, deepwater, docking, pipeline, structure,
 #                                 orca_demo, freya_demo, orca_freya_demo, tacc
 #               No-GPU scenarios: nautilus_no_gpu, orca_no_gpu, freya_no_gpu
 
@@ -12,7 +12,7 @@ Usage: $(basename "$0") [OPTIONS]
 
 Options:
   --scenario <name>   Stonefish scenario to load (default: default)
-                        GPU:    default, docking, pipeline, structure,
+                        GPU:    default, deepwater, docking, pipeline, structure,
                                 orca_demo, freya_demo, orca_freya_demo, tacc
                         No-GPU: nautilus_no_gpu, orca_no_gpu, freya_no_gpu
   -h, --help          Show this help message
@@ -45,7 +45,8 @@ fi
 tmux new-session -d -s "$SESSION" -n "sim"
 
 PANE_SIM=$(tmux list-panes -t "$SESSION:sim" -F '#{pane_id}')
-tmux send-keys -t "$PANE_SIM" "clear && $S && ros2 launch stonefish_sim vortex_sim_launch.py keyboard_joy:=true scenario:=$SCENARIO" Enter
+# tmux send-keys -t "$PANE_SIM" "clear && $S && ros2 launch stonefish_sim vortex_sim_launch.py keyboard_joy:=true scenario:=$SCENARIO" Enter
+tmux send-keys -t "$PANE_SIM" "clear && $S && ros2 launch stonefish_sim vortex_sim_launch.py drone:=sysid scenario:=deepwater rendering:=true keyboard_joy:=true" Enter
 
 PANE_P2=$(tmux split-window -h -t "$PANE_SIM" -P -F '#{pane_id}')
 tmux send-keys -t "$PANE_P2" "clear && $S && ros2 launch auv_setup dp_quat.launch.py" Enter

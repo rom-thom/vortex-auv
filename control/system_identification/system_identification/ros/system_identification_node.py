@@ -18,7 +18,7 @@ class SystemIdentificationNode(Node):
     def __init__(self):
         super().__init__("system_identification_node")
 
-        self.declare_parameter("topics.imu", "/imu/data")
+        self.declare_parameter("topics.imu", "/sysid/imu/data_raw")
         self.declare_parameter("imu_output_file", "system_identification/data/imu_test.csv")
 
         imu_topic = self.get_parameter("topics.imu").value
@@ -37,11 +37,11 @@ class SystemIdentificationNode(Node):
         self.recording_subscriptions = []
         output_paths = {self.imu_output_file} if self.imu_output_file else set()
         for name, message_type, default_topic in (
-            ("odom", Odometry, "/odom"),
-            ("dvl_twist", TwistWithCovarianceStamped, "/dvl/twist"),
-            ("twist", TwistWithCovarianceStamped, "/twist"),
-            ("wrench_input", WrenchStamped, "/wrench_input"),
-            ("thruster_forces", ThrusterForces, "/thruster_forces"),
+            ("odom", Odometry, "/sysid/odom"),
+            ("dvl_twist", TwistWithCovarianceStamped, "/sysid/dvl/twist"),
+            ("twist", TwistWithCovarianceStamped, "/sysid/twist"),
+            ("wrench_input", WrenchStamped, "/sysid/wrench_input"),
+            ("thruster_forces", ThrusterForces, "/sysid/thruster_forces"),
         ):
             self.declare_parameter(f"topics.{name}", default_topic)
             # An empty filename disables recording for this topic.

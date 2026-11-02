@@ -13,6 +13,7 @@ import pytest
 from scipy.spatial.transform import Rotation
 
 from system_identification.src.data_handeling import load_data, merge_data
+from system_identification.src.evaluate import evaluate, plot_predictions, print_evaluation
 from system_identification.src.regresion_builds import (
     FOSSEN_PARAMETER_NAMES,
     build_regression_fossen,
@@ -33,8 +34,14 @@ MIN_DEPTH = 0.7  # Conservative hull clearance below the NED water surface.
 
 VEHICLES = {
     "nautilus": (MASS_KG, DISPLACED_VOLUME, CENTER_OF_GRAVITY, CENTER_OF_BUOYANCY, MIN_DEPTH),
-    "test_drone": (9.279, 0.009, np.zeros(3), np.zeros(3), 0.25),
+    "sysid": (
+        MASS_KG * 0.6**3, DISPLACED_VOLUME * 0.6**3,
+        CENTER_OF_GRAVITY * 0.6, CENTER_OF_BUOYANCY * 0.6, MIN_DEPTH * 0.6,
+    ),
 }
+
+# Preserve evaluation of recordings made before the vehicle was renamed.
+VEHICLES["test_drone"] = VEHICLES["sysid"]
 
 
 def _prepare_segment(segment, vehicle="nautilus"):
@@ -67,7 +74,7 @@ def _prepare_segment(segment, vehicle="nautilus"):
     }
 
 
-def run_sim_fit(directory=None, vehicle="nautilus"):
+def run_sim_fit(directory=None, vehicle="nautilus", *, plot=False, save_plot=None):
     if directory is None:
         directory = DATA_DIRECTORY if vehicle == "nautilus" else DATA_DIRECTORY / vehicle
     odom = load_data(Path(directory) / "odom_test.csv")
@@ -98,16 +105,20 @@ def run_sim_fit(directory=None, vehicle="nautilus"):
     rank = np.linalg.matrix_rank(A)
     norms = np.linalg.norm(A, axis=0)
     condition = np.linalg.cond(A / np.where(norms > 0, norms, 1.0))
-    parameters = model.fit_parameters(training)
+    # Inertia entries may have either sign; all 12 damping coefficients must be nonnegative.
+    lower = np.full(len(FOSSEN_PARAMETER_NAMES), -np.inf)
+    upper = np.full(len(FOSSEN_PARAMETER_NAMES), np.inf)
+    lower[21:] = 0.0
+    parameters = model.fit_parameters(training, bounds=(lower, upper))
     predicted = model.predict(validation).reshape(-1, 6) + validation["restoring"]
     actual = validation["force"]
-    rmse = np.sqrt(np.mean((predicted - actual) ** 2, axis=0))
-    baseline_rmse = np.sqrt(np.mean((actual - training["force"].mean(axis=0)) ** 2, axis=0))
-    variance = np.sum((actual - actual.mean(axis=0)) ** 2, axis=0)
-    r_squared = np.full(6, np.nan)
-    np.divide(np.sum((actual - predicted) ** 2, axis=0), variance,
-              out=r_squared, where=variance > 1e-12)
-    r_squared = 1 - r_squared
+    output_names = list("XYZKMN")
+    report = evaluate(actual, predicted, output_names)
+    rmse = np.array([report[name]["rmse"] for name in output_names])
+    baseline = np.broadcast_to(training["force"].mean(axis=0), actual.shape)
+    baseline_report = evaluate(actual, baseline, output_names)
+    for name in output_names:
+        report[name]["baseline_rmse"] = baseline_report[name]["rmse"]
 
     mass = np.zeros((6, 6))
     upper = np.triu_indices(6)
@@ -115,6 +126,7 @@ def run_sim_fit(directory=None, vehicle="nautilus"):
     mass[(upper[1], upper[0])] = parameters[:21]
     print("Recorded simulator data; assumed zero water current, NED/body frames.")
     print("Target: requested wrench, not measured delivered thrust.")
+    print("Constraints: nonnegative linear/quadratic damping; inertia is unconstrained.")
     print(f"Restoring: fully submerged {vehicle} hull, using configured mass/volume/centres.")
     print("Samples (native / training / validation):",
           len(merged["time"]), len(training["time"]), len(validation["time"]))
@@ -125,14 +137,19 @@ def run_sim_fit(directory=None, vehicle="nautilus"):
         print("Inertia eigenvalues:", np.linalg.eigvalsh(mass))
         print("Linear damping [u,v,w,p,q,r]:", parameters[21:27])
         print("Quadratic damping [u,v,w,p,q,r]:", parameters[27:])
-    print("Axis  Unit   Model RMSE   Constant baseline RMSE   R2")
-    for i, axis in enumerate("XYZKMN"):
-        unit = "N" if i < 3 else "N*m"
-        print(f"{axis:4}  {unit:4}  {rmse[i]:10.3f}   {baseline_rmse[i]:22.3f}   {r_squared[i]:.3f}")
+    print("Output units: X/Y/Z in N; K/M/N in N*m. Baseline uses training means.")
+    print_evaluation(report)
+    if plot or save_plot is not None:
+        figure, _ = plot_predictions(
+            actual, predicted, output_names, time=validation["time"],
+            units=["N"] * 3 + ["N*m"] * 3, save_path=save_plot, show=plot,
+        )
+        import matplotlib.pyplot as plt
+        plt.close(figure)
     if rank < len(FOSSEN_PARAMETER_NAMES):
         print("WARNING: This recording cannot identify all 33 parameters.")
-    if np.any(np.linalg.eigvalsh(mass) <= 0) or np.any(parameters[21:] < 0):
-        print("WARNING: Unconstrained fit produced nonphysical inertia or damping.")
+    if np.any(np.linalg.eigvalsh(mass) <= 0):
+        print("WARNING: Estimated inertia is not positive definite.")
     return parameters, rmse
 
 
@@ -145,6 +162,7 @@ def test_sim_full_fossen():
     assert parameters.shape == (33,)
     assert rmse.shape == (6,)
     assert np.all(np.isfinite(parameters)) and np.all(np.isfinite(rmse))
+    assert np.all(parameters[21:] >= 0)
 
 
 def test_segment_derivative_and_restoring_convention():
@@ -174,13 +192,17 @@ def test_segment_derivative_and_restoring_convention():
     expected_g[:, 3] = CENTER_OF_GRAVITY[2] * MASS_KG * 9.81
     np.testing.assert_allclose(tilted["restoring"], expected_g, atol=1e-10)
 
-    neutral = _prepare_segment(segment, vehicle="test_drone")
-    np.testing.assert_allclose(neutral["restoring"], 0, atol=1e-10)
+    scaled = _prepare_segment(segment, vehicle="sysid")
+    expected_g[:, :3] *= 0.6**3
+    expected_g[:, 3:] *= 0.6**4
+    np.testing.assert_allclose(scaled["restoring"], expected_g, atol=1e-10)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", type=Path, default=None)
-    parser.add_argument("--vehicle", choices=VEHICLES, default="nautilus")
+    parser.add_argument("--vehicle", choices=VEHICLES, default="sysid")
+    parser.add_argument("--plot", action="store_true", help="Show actual/predicted validation outputs.")
+    parser.add_argument("--save-plot", type=Path, help="Save the validation plot, e.g. results/fit.png.")
     args = parser.parse_args()
-    run_sim_fit(args.data_dir, args.vehicle)
+    run_sim_fit(args.data_dir, args.vehicle, plot=args.plot, save_plot=args.save_plot)
